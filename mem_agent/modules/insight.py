@@ -193,7 +193,9 @@ def build_daily_insight(target_date: date, engine: MemEngine) -> str:
     prompt = (
         f"以下是 {target_date.isoformat()} 的工作日志摘要:\n\n"
         f"{summary_text}\n\n"
-        f"时间分配: {', '.join(f'{c}: {a['count']}条' for c, a in allocation.items())}\n"
+        "时间分配: "
+        + ", ".join(f"{c}: {a['count']}条" for c, a in allocation.items())
+        + "\n"
         f"活跃任务: {task_summary['active_count']}, 停滞任务: {len(task_summary['stalled'])}\n\n"
         "请给出 2-3 条简短的工作建议，用中文，markdown 列表格式。"
     )
