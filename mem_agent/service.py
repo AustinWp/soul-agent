@@ -166,6 +166,9 @@ class DailyLogRequest(BaseModel):
     text: str
     source: str = "manual"
 
+class ClaudeCodeRequest(BaseModel):
+    text: str
+
 
 def create_app() -> Any:
     """Create and return the FastAPI application."""
@@ -177,16 +180,44 @@ def create_app() -> Any:
     async def lifespan(app: FastAPI):
         """Initialize engine, clipboard, janitor, abstract refresher on startup."""
         from mem_agent.core.engine import get_engine
+        from mem_agent.core.queue import IngestQueue
         from mem_agent.modules.abstract import AbstractRefresher
+        from mem_agent.modules.browser import start_browser_monitor
         from mem_agent.modules.clipboard import start_clipboard_monitor
+        from mem_agent.modules.filewatcher import start_file_watcher
+        from mem_agent.modules.insight import start_insight_thread
         from mem_agent.modules.janitor import start_janitor_thread
+        from mem_agent.modules.pipeline import start_pipeline_thread
 
         engine = get_engine()
         engine.initialize(config_path=str(DEFAULT_CONFIG))
         state["engine"] = engine
 
-        # Clipboard monitor
-        clip_thread, clip_running = start_clipboard_monitor(engine)
+        # Ingest queue and classification pipeline
+        ingest_queue = IngestQueue(batch_size=10, flush_interval=60)
+        state["ingest_queue"] = ingest_queue
+
+        pipeline_thread, pipeline_stop = start_pipeline_thread(ingest_queue, engine)
+        state["pipeline_thread"] = pipeline_thread
+        state["pipeline_stop"] = pipeline_stop
+
+        # Browser history monitor
+        browser_thread, browser_stop = start_browser_monitor(ingest_queue)
+        state["browser_thread"] = browser_thread
+        state["browser_stop"] = browser_stop
+
+        # File watcher
+        file_observer, file_stop = start_file_watcher(ingest_queue)
+        state["file_observer"] = file_observer
+        state["file_stop"] = file_stop
+
+        # Insight thread (daily insight at 20:00)
+        insight_thread, insight_stop = start_insight_thread(engine)
+        state["insight_thread"] = insight_thread
+        state["insight_stop"] = insight_stop
+
+        # Clipboard monitor (now with ingest queue)
+        clip_thread, clip_running = start_clipboard_monitor(engine, ingest_queue=ingest_queue)
         state["clip_thread"] = clip_thread
         state["clip_running"] = clip_running
 
@@ -225,6 +256,14 @@ def create_app() -> Any:
         refresher.stop()
         compact_stop.set()
         compact_thread.join(timeout=5)
+        pipeline_stop.clear()
+        pipeline_thread.join(timeout=5)
+        browser_stop.clear()
+        browser_thread.join(timeout=5)
+        file_observer.stop()
+        file_observer.join(timeout=5)
+        insight_stop.clear()
+        insight_thread.join(timeout=5)
         engine.close()
 
     app = FastAPI(title="mem-agent", lifespan=lifespan)
@@ -274,7 +313,7 @@ def create_app() -> Any:
             elapsed = time.time() - _last_flush_time
             should_flush = elapsed >= _CMD_FLUSH_INTERVAL and len(_cmd_buffer) > 0
         if should_flush:
-            _flush_cmd_buffer(state["engine"])
+            _flush_cmd_buffer(state["engine"], ingest_queue=state.get("ingest_queue"))
         return {"status": "ok", "buffered": len(_cmd_buffer)}
 
     @app.get("/search")
@@ -365,6 +404,83 @@ def create_app() -> Any:
         engine = state["engine"]
         append_daily_log(req.text, req.source, engine)
         return {"status": "ok"}
+
+    # ── Phase 5 endpoints ─────────────────────────────────────────────
+
+    @app.post("/ingest/claudecode")
+    async def ingest_claudecode(req: ClaudeCodeRequest):
+        from datetime import datetime
+
+        from mem_agent.core.queue import IngestItem
+
+        state["ingest_queue"].put(
+            IngestItem(text=req.text, source="claude-code", timestamp=datetime.now(), meta={})
+        )
+        return {"status": "queued"}
+
+    @app.get("/insight")
+    async def get_insight(date: str = "today"):
+        from datetime import date as _date
+
+        from mem_agent.modules.insight import build_daily_insight
+
+        engine = state["engine"]
+        target = _date.today() if date == "today" else _date.fromisoformat(date)
+        report = build_daily_insight(target, engine)
+        return {"date": target.isoformat(), "report": report}
+
+    @app.get("/categories")
+    async def get_categories(period: str = "today"):
+        from datetime import date as _date
+
+        from mem_agent.modules.daily_log import get_daily_log
+        from mem_agent.modules.insight import compute_time_allocation, parse_daily_log_entries
+
+        engine = state["engine"]
+        log = get_daily_log(_date.today(), engine)
+        if not log:
+            return {"categories": {}}
+        entries = parse_daily_log_entries(log)
+        alloc = compute_time_allocation(entries)
+        return {"categories": alloc}
+
+    @app.get("/suggest")
+    async def get_suggest(focus: str = ""):
+        from datetime import date as _date
+
+        from mem_agent.modules.insight import build_daily_insight
+
+        engine = state["engine"]
+        report = build_daily_insight(_date.today(), engine)
+        return {"suggestions": report}
+
+    @app.get("/todo/progress/{todo_id}")
+    async def get_todo_progress(todo_id: str):
+        from mem_agent.core.frontmatter import parse_activity_log, parse_frontmatter
+        from mem_agent.modules.todo import ACTIVE_DIR
+
+        engine = state["engine"]
+        for filename in engine.list_resources(ACTIVE_DIR):
+            content = engine.read_resource(f"{ACTIVE_DIR}{filename}")
+            if content:
+                fields, body = parse_frontmatter(content)
+                if fields.get("id", "")[:8] == todo_id[:8]:
+                    activity = parse_activity_log(fields.get("activity_log", ""))
+                    return {"id": todo_id, "text": body.strip(), "activity": activity}
+        return {"error": "not found"}
+
+    @app.get("/input-hook/status")
+    async def input_hook_status():
+        from mem_agent.modules.input_hook import hook_status
+
+        return hook_status()
+
+    @app.post("/input-hook/stop")
+    async def input_hook_stop():
+        from mem_agent.modules.input_hook import stop_input_hook
+
+        stop_input_hook()
+        return {"status": "stopped"}
 
     return app
 
