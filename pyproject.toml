@@ -1,0 +1,28 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "mem-agent"
+version = "0.1.0"
+description = "Personal Agent memory system built on OpenViking"
+requires-python = ">=3.10"
+dependencies = [
+    "openviking>=0.1.6",
+    "typer[all]>=0.9.0",
+    "rich>=13.0.0",
+    "openai>=1.0.0",
+    "fastapi>=0.100.0",
+    "uvicorn>=0.20.0",
+    "httpx>=0.24.0",
+    "watchdog>=4.0.0",
+    "pyobjc-framework-Quartz>=10.0",
+    "pyobjc-framework-Cocoa>=10.0",
+    "mcp>=1.0.0",
+]
+
+[project.scripts]
+mem = "mem_agent.cli:app"
+
+[tool.hatch.build.targets.wheel]
+packages = ["mem_agent"]
