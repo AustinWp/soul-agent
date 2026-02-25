@@ -133,7 +133,7 @@ class TestBuildDailyInsight:
             "[14:00] (terminal) [coding] refactored parser module"
         )
         engine.read_resource.side_effect = lambda uri: log_content if "logs" in uri else None
-        engine.list_resources.return_value = []
+        engine.list_resources.return_value = ["2026-02-25/"]
 
         report = build_daily_insight(date(2026, 2, 25), engine)
         assert "coding" in report

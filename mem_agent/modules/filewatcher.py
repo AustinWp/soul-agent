@@ -32,6 +32,10 @@ IGNORE_DIRS = frozenset({
     "build",
     ".idea",
     ".vscode",
+    "data",
+    "vectordb",
+    ".agfs",
+    "logs",
 })
 
 IGNORE_FILES = frozenset({
@@ -39,6 +43,10 @@ IGNORE_FILES = frozenset({
     "Thumbs.db",
     ".gitkeep",
     "desktop.ini",
+    "LOCK",
+    "LOG",
+    "MANIFEST",
+    "CURRENT",
 })
 
 BINARY_EXTENSIONS = frozenset({
@@ -47,7 +55,7 @@ BINARY_EXTENSIONS = frozenset({
     ".mp3", ".mp4", ".avi", ".mov", ".mkv", ".wav", ".flac", ".ogg",
     ".woff", ".woff2", ".ttf", ".eot",
     ".pyc", ".pyo", ".so", ".dylib", ".dll", ".o", ".a",
-    ".sqlite", ".db",
+    ".sqlite", ".db", ".tmp", ".lock",
 })
 
 DEFAULT_WATCH_DIRS = [

@@ -13,6 +13,7 @@ class TestAppendDailyLog:
         from mem_agent.modules.daily_log import append_daily_log
 
         engine = MagicMock()
+        engine.list_resources.return_value = []
         engine.read_resource.return_value = None
         engine.config = {}
 
@@ -30,6 +31,8 @@ class TestAppendDailyLog:
 
         engine = MagicMock()
         existing = "---\ndate: 2026-02-23\npriority: P2\n---\n[10:00] (note) first entry"
+        today = date.today().isoformat()
+        engine.list_resources.return_value = [f"{today}/"]
         engine.read_resource.return_value = existing
         engine.config = {}
 
@@ -45,6 +48,7 @@ class TestAppendDailyLog:
         from mem_agent.modules.daily_log import append_daily_log
 
         engine = MagicMock()
+        engine.list_resources.return_value = []
         engine.read_resource.return_value = None
 
         append_daily_log("test", "note", engine)
@@ -58,18 +62,33 @@ class TestGetDailyLog:
         from mem_agent.modules.daily_log import get_daily_log
 
         engine = MagicMock()
+        engine.list_resources.return_value = ["2026-02-23/"]
         engine.read_resource.return_value = "log content"
 
         result = get_daily_log(date(2026, 2, 23), engine)
 
         assert result == "log content"
-        engine.read_resource.assert_called_with("viking://resources/logs/2026-02-23.md")
+
+    def test_get_existing_log_versioned(self):
+        from mem_agent.modules.daily_log import get_daily_log
+
+        engine = MagicMock()
+        engine.list_resources.return_value = ["2026-02-23/", "2026-02-23_1/", "2026-02-23_5/"]
+        engine.read_resource.return_value = "latest log content"
+
+        result = get_daily_log(date(2026, 2, 23), engine)
+
+        assert result == "latest log content"
+        # Should read from the highest versioned URI
+        engine.read_resource.assert_called_with(
+            "viking://resources/logs/2026-02-23_5/2026-02-23.md"
+        )
 
     def test_get_missing_log(self):
         from mem_agent.modules.daily_log import get_daily_log
 
         engine = MagicMock()
-        engine.read_resource.return_value = None
+        engine.list_resources.return_value = []
 
         result = get_daily_log(date(2026, 2, 23), engine)
         assert result is None
@@ -83,6 +102,7 @@ class TestAppendClassifiedLog:
 
         engine = MagicMock()
         engine.config = {}
+        engine.list_resources.return_value = []
         engine.read_resource.return_value = None
         append_daily_log("fixed parser bug", "note", engine, category="coding", tags=["python", "bugfix"], importance=4)
         engine.write_resource.assert_called_once()
@@ -96,6 +116,8 @@ class TestAppendClassifiedLog:
 
         engine = MagicMock()
         engine.config = {}
+        today = date.today().isoformat()
+        engine.list_resources.return_value = [f"{today}/"]
         engine.read_resource.return_value = "---\npriority: P2\ndate: 2026-02-25\n---\n[10:00] (note) [coding] first entry\n"
         append_daily_log("read article about Rust", "browser", engine, category="learning", tags=["rust"], importance=2)
         engine.write_resource.assert_called_once()

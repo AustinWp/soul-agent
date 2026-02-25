@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 from datetime import date, datetime
 from typing import TYPE_CHECKING
 
@@ -11,6 +12,34 @@ if TYPE_CHECKING:
     from ..core.engine import MemEngine
 
 LOGS_DIR = "viking://resources/logs/"
+
+
+def _find_daily_log_uri(target_date: date, engine: MemEngine) -> str | None:
+    """Find the actual URI for a daily log, handling OpenViking versioned names.
+
+    OpenViking may create versioned resources like ``2026-02-25_1/``,
+    ``2026-02-25_2/`` etc.  This helper finds the latest version.
+    """
+    date_str = target_date.isoformat()
+    pattern = re.compile(re.escape(date_str) + r"(?:_(\d+))?$")
+
+    try:
+        resources = engine.list_resources(LOGS_DIR)
+    except Exception:
+        return None
+
+    best_uri = None
+    best_version = -1
+    for name in resources:
+        clean = name.rstrip("/")
+        m = pattern.match(clean)
+        if m:
+            version = int(m.group(1)) if m.group(1) else 0
+            if version > best_version:
+                best_version = version
+                best_uri = f"{LOGS_DIR}{clean}/{date_str}.md"
+
+    return best_uri
 
 
 def append_daily_log(
@@ -27,12 +56,15 @@ def append_daily_log(
     """
     today = date.today().isoformat()
     filename = f"{today}.md"
-    uri = f"{LOGS_DIR}{filename}"
     now = datetime.now().strftime("%H:%M")
     cat_tag = f" [{category}]" if category else ""
     entry = f"[{now}] ({source}){cat_tag} {text}"
 
-    existing = engine.read_resource(uri)
+    # Try to find existing log (handles versioned names)
+    existing_uri = _find_daily_log_uri(date.today(), engine)
+    existing = None
+    if existing_uri:
+        existing = engine.read_resource(existing_uri)
 
     if existing:
         fields, body = parse_frontmatter(existing)
@@ -42,14 +74,15 @@ def append_daily_log(
         else:
             body = entry
         content = build_frontmatter(fields, body)
+        # Delete old version, then write new
+        try:
+            engine.delete_resource(existing_uri)
+        except Exception:
+            pass
     else:
         # New daily log with P2 lifecycle
         fields = add_lifecycle_fields({"date": today}, priority="P2", ttl_days=30)
         content = build_frontmatter(fields, entry)
-
-    # Delete old version if it exists, then write new
-    if existing:
-        engine.delete_resource(uri)
 
     engine.write_resource(
         content=content,
@@ -60,6 +93,7 @@ def append_daily_log(
 
 def get_daily_log(target_date: date, engine: MemEngine) -> str | None:
     """Read a specific day's log. Returns None if not found."""
-    filename = f"{target_date.isoformat()}.md"
-    uri = f"{LOGS_DIR}{filename}"
-    return engine.read_resource(uri)
+    uri = _find_daily_log_uri(target_date, engine)
+    if uri:
+        return engine.read_resource(uri)
+    return None
