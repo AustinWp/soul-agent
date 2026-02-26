@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import re
+import threading
 from datetime import date, datetime
 from typing import TYPE_CHECKING
 
@@ -12,6 +13,17 @@ if TYPE_CHECKING:
     from ..core.engine import MemEngine
 
 LOGS_DIR = "viking://resources/logs/"
+
+# In-memory cache for today's log to avoid read-delete-write cycle
+_log_lock = threading.Lock()
+_today_cache: dict[str, str] = {}  # date_str -> accumulated body text
+_today_fields: dict[str, dict] = {}  # date_str -> frontmatter fields
+
+
+def clear_daily_log_cache() -> None:
+    """Clear the in-memory daily log cache. Used for testing."""
+    _today_cache.clear()
+    _today_fields.clear()
 
 
 def _find_daily_log_uri(target_date: date, engine: MemEngine) -> str | None:
@@ -42,6 +54,25 @@ def _find_daily_log_uri(target_date: date, engine: MemEngine) -> str | None:
     return best_uri
 
 
+def _seed_cache(today: str, engine: MemEngine) -> None:
+    """Load today's log from storage into memory cache on first access."""
+    if today in _today_cache:
+        return
+
+    uri = _find_daily_log_uri(date.fromisoformat(today), engine)
+    if uri:
+        content = engine.read_resource(uri)
+        if content:
+            fields, body = parse_frontmatter(content)
+            _today_fields[today] = fields
+            _today_cache[today] = body or ""
+            return
+
+    # No existing log — initialize empty
+    _today_fields[today] = add_lifecycle_fields({"date": today}, priority="P2", ttl_days=30)
+    _today_cache[today] = ""
+
+
 def append_daily_log(
     text: str,
     source: str,
@@ -52,7 +83,8 @@ def append_daily_log(
 ) -> None:
     """Append a timestamped entry to today's daily log.
 
-    Creates the log file with P2 frontmatter if it doesn't exist.
+    Uses an in-memory cache to accumulate entries, writing each update
+    to OpenViking without a delete-then-write cycle.
     """
     today = date.today().isoformat()
     filename = f"{today}.md"
@@ -60,39 +92,33 @@ def append_daily_log(
     cat_tag = f" [{category}]" if category else ""
     entry = f"[{now}] ({source}){cat_tag} {text}"
 
-    # Try to find existing log (handles versioned names)
-    existing_uri = _find_daily_log_uri(date.today(), engine)
-    existing = None
-    if existing_uri:
-        existing = engine.read_resource(existing_uri)
+    with _log_lock:
+        _seed_cache(today, engine)
 
-    if existing:
-        fields, body = parse_frontmatter(existing)
-        # Append new entry
-        if body:
-            body = body + "\n" + entry
+        if _today_cache[today]:
+            _today_cache[today] += "\n" + entry
         else:
-            body = entry
-        content = build_frontmatter(fields, body)
-        # Delete old version, then write new
-        try:
-            engine.delete_resource(existing_uri)
-        except Exception:
-            pass
-    else:
-        # New daily log with P2 lifecycle
-        fields = add_lifecycle_fields({"date": today}, priority="P2", ttl_days=30)
-        content = build_frontmatter(fields, entry)
+            _today_cache[today] = entry
 
-    engine.write_resource(
-        content=content,
-        target_uri=LOGS_DIR,
-        filename=filename,
-    )
+        content = build_frontmatter(_today_fields[today], _today_cache[today])
+
+        engine.write_resource(
+            content=content,
+            target_uri=LOGS_DIR,
+            filename=filename,
+        )
 
 
 def get_daily_log(target_date: date, engine: MemEngine) -> str | None:
     """Read a specific day's log. Returns None if not found."""
+    today_str = target_date.isoformat()
+
+    # For today, use the in-memory cache if available
+    with _log_lock:
+        if today_str in _today_cache and _today_cache[today_str]:
+            return build_frontmatter(_today_fields[today_str], _today_cache[today_str])
+
+    # For past days, read from storage
     uri = _find_daily_log_uri(target_date, engine)
     if uri:
         return engine.read_resource(uri)

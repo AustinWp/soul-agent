@@ -8,6 +8,15 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 
+@pytest.fixture(autouse=True)
+def _clear_log_cache():
+    """Clear the daily log in-memory cache before each test."""
+    from mem_agent.modules.daily_log import clear_daily_log_cache
+    clear_daily_log_cache()
+    yield
+    clear_daily_log_cache()
+
+
 class TestAppendDailyLog:
     def test_create_new_log(self):
         from mem_agent.modules.daily_log import append_daily_log
@@ -38,7 +47,6 @@ class TestAppendDailyLog:
 
         append_daily_log("second entry", "clipboard", engine)
 
-        engine.delete_resource.assert_called_once()
         engine.write_resource.assert_called_once()
         content = engine.write_resource.call_args.kwargs["content"]
         assert "first entry" in content
@@ -96,8 +104,6 @@ class TestGetDailyLog:
 
 class TestAppendClassifiedLog:
     def test_append_with_classification(self):
-        from unittest.mock import MagicMock
-
         from mem_agent.modules.daily_log import append_daily_log
 
         engine = MagicMock()
@@ -110,8 +116,6 @@ class TestAppendClassifiedLog:
         assert "[coding]" in content
 
     def test_append_preserves_existing_classified_entries(self):
-        from unittest.mock import MagicMock
-
         from mem_agent.modules.daily_log import append_daily_log
 
         engine = MagicMock()

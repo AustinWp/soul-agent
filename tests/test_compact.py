@@ -8,6 +8,13 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 
+@pytest.fixture(autouse=True)
+def _clear_log_cache():
+    from mem_agent.modules.daily_log import clear_daily_log_cache
+    clear_daily_log_cache()
+    yield
+    clear_daily_log_cache()
+
 class TestWeekLabel:
     def test_week_label_format(self):
         from mem_agent.modules.compact import _week_label
