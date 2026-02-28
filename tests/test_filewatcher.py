@@ -7,61 +7,61 @@ import tempfile
 
 class TestShouldIgnore:
     def test_ignore_git_dir(self):
-        from mem_agent.modules.filewatcher import _should_ignore
+        from soul_agent.modules.filewatcher import _should_ignore
 
         assert _should_ignore("/home/user/project/.git/config") is True
 
     def test_ignore_node_modules(self):
-        from mem_agent.modules.filewatcher import _should_ignore
+        from soul_agent.modules.filewatcher import _should_ignore
 
         assert _should_ignore("/home/user/project/node_modules/pkg/index.js") is True
 
     def test_ignore_ds_store(self):
-        from mem_agent.modules.filewatcher import _should_ignore
+        from soul_agent.modules.filewatcher import _should_ignore
 
         assert _should_ignore("/home/user/Desktop/.DS_Store") is True
 
     def test_ignore_binary_extension(self):
-        from mem_agent.modules.filewatcher import _should_ignore
+        from soul_agent.modules.filewatcher import _should_ignore
 
         assert _should_ignore("/home/user/photos/image.png") is True
         assert _should_ignore("/home/user/files/archive.zip") is True
         assert _should_ignore("/home/user/music/song.mp3") is True
 
     def test_allow_normal_text_file(self):
-        from mem_agent.modules.filewatcher import _should_ignore
+        from soul_agent.modules.filewatcher import _should_ignore
 
         assert _should_ignore("/home/user/project/readme.txt") is False
 
     def test_allow_python_file(self):
-        from mem_agent.modules.filewatcher import _should_ignore
+        from soul_agent.modules.filewatcher import _should_ignore
 
         assert _should_ignore("/home/user/project/main.py") is False
 
     def test_allow_markdown_file(self):
-        from mem_agent.modules.filewatcher import _should_ignore
+        from soul_agent.modules.filewatcher import _should_ignore
 
         assert _should_ignore("/home/user/notes/todo.md") is False
 
     def test_ignore_pycache(self):
-        from mem_agent.modules.filewatcher import _should_ignore
+        from soul_agent.modules.filewatcher import _should_ignore
 
         assert _should_ignore("/home/user/project/__pycache__/module.cpython-312.pyc") is True
 
     def test_ignore_hidden_files(self):
-        from mem_agent.modules.filewatcher import _should_ignore
+        from soul_agent.modules.filewatcher import _should_ignore
 
         assert _should_ignore("/home/user/.hidden_file") is True
 
     def test_ignore_venv(self):
-        from mem_agent.modules.filewatcher import _should_ignore
+        from soul_agent.modules.filewatcher import _should_ignore
 
         assert _should_ignore("/home/user/project/.venv/lib/python3.12/site.py") is True
 
 
 class TestExtractPreview:
     def test_extract_preview_basic(self):
-        from mem_agent.modules.filewatcher import _extract_preview
+        from soul_agent.modules.filewatcher import _extract_preview
 
         with tempfile.NamedTemporaryFile(mode="w", suffix=".txt", delete=False) as f:
             f.write("Hello, this is a test file with some content.")
@@ -74,7 +74,7 @@ class TestExtractPreview:
             os.unlink(path)
 
     def test_extract_preview_truncates(self):
-        from mem_agent.modules.filewatcher import _extract_preview
+        from soul_agent.modules.filewatcher import _extract_preview
 
         with tempfile.NamedTemporaryFile(mode="w", suffix=".txt", delete=False) as f:
             f.write("A" * 1000)
@@ -88,13 +88,13 @@ class TestExtractPreview:
             os.unlink(path)
 
     def test_extract_preview_missing_file(self):
-        from mem_agent.modules.filewatcher import _extract_preview
+        from soul_agent.modules.filewatcher import _extract_preview
 
         result = _extract_preview("/tmp/nonexistent_file_99999.txt")
         assert result == ""
 
     def test_extract_preview_empty_file(self):
-        from mem_agent.modules.filewatcher import _extract_preview
+        from soul_agent.modules.filewatcher import _extract_preview
 
         with tempfile.NamedTemporaryFile(mode="w", suffix=".txt", delete=False) as f:
             path = f.name
@@ -110,7 +110,7 @@ class TestFileHandler:
     def test_handler_ignores_directories(self):
         from unittest.mock import MagicMock
 
-        from mem_agent.modules.filewatcher import _FileHandler
+        from soul_agent.modules.filewatcher import _FileHandler
 
         queue = MagicMock()
         handler = _FileHandler(queue)
@@ -125,7 +125,7 @@ class TestFileHandler:
     def test_handler_ignores_ignored_files(self):
         from unittest.mock import MagicMock
 
-        from mem_agent.modules.filewatcher import _FileHandler
+        from soul_agent.modules.filewatcher import _FileHandler
 
         queue = MagicMock()
         handler = _FileHandler(queue)
@@ -141,7 +141,7 @@ class TestFileHandler:
     def test_handler_processes_valid_file(self):
         from unittest.mock import MagicMock
 
-        from mem_agent.modules.filewatcher import _FileHandler
+        from soul_agent.modules.filewatcher import _FileHandler
 
         queue = MagicMock()
         handler = _FileHandler(queue)

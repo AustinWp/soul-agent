@@ -10,7 +10,7 @@ import pytest
 
 class TestFallbackClassify:
     def test_terminal_source_maps_to_coding(self):
-        from mem_agent.modules.classifier import fallback_classify
+        from soul_agent.modules.classifier import fallback_classify
 
         result = fallback_classify("git status", "terminal")
         assert result["category"] == "coding"
@@ -18,7 +18,7 @@ class TestFallbackClassify:
         assert result["action_type"] is None
 
     def test_browser_source_maps_to_browsing(self):
-        from mem_agent.modules.classifier import fallback_classify
+        from soul_agent.modules.classifier import fallback_classify
 
         result = fallback_classify("visited google.com", "browser")
         assert result["category"] == "browsing"
@@ -26,7 +26,7 @@ class TestFallbackClassify:
         assert result["action_type"] is None
 
     def test_claude_code_source_maps_to_coding(self):
-        from mem_agent.modules.classifier import fallback_classify
+        from soul_agent.modules.classifier import fallback_classify
 
         result = fallback_classify("refactor module", "claude-code")
         assert result["category"] == "coding"
@@ -34,7 +34,7 @@ class TestFallbackClassify:
         assert result["action_type"] is None
 
     def test_input_method_source_maps_to_communication(self):
-        from mem_agent.modules.classifier import fallback_classify
+        from soul_agent.modules.classifier import fallback_classify
 
         result = fallback_classify("hello world", "input-method")
         assert result["category"] == "communication"
@@ -42,7 +42,7 @@ class TestFallbackClassify:
         assert result["action_type"] is None
 
     def test_unknown_source_defaults_to_work(self):
-        from mem_agent.modules.classifier import fallback_classify
+        from soul_agent.modules.classifier import fallback_classify
 
         result = fallback_classify("some note", "note")
         assert result["category"] == "work"
@@ -52,7 +52,7 @@ class TestFallbackClassify:
 
 class TestParseLLMResponse:
     def test_valid_json_array(self):
-        from mem_agent.modules.classifier import _parse_llm_response
+        from soul_agent.modules.classifier import _parse_llm_response
 
         raw = json.dumps([
             {
@@ -71,13 +71,13 @@ class TestParseLLMResponse:
         assert result[0]["importance"] == 4
 
     def test_invalid_json_returns_empty(self):
-        from mem_agent.modules.classifier import _parse_llm_response
+        from soul_agent.modules.classifier import _parse_llm_response
 
         result = _parse_llm_response("this is not json at all", count=1)
         assert result == []
 
     def test_json_with_markdown_fences(self):
-        from mem_agent.modules.classifier import _parse_llm_response
+        from soul_agent.modules.classifier import _parse_llm_response
 
         inner = json.dumps([
             {
@@ -96,7 +96,7 @@ class TestParseLLMResponse:
         assert result[0]["category"] == "learning"
 
     def test_count_mismatch_returns_empty(self):
-        from mem_agent.modules.classifier import _parse_llm_response
+        from soul_agent.modules.classifier import _parse_llm_response
 
         raw = json.dumps([
             {"category": "coding", "tags": [], "importance": 3, "summary": "a"},
@@ -108,7 +108,7 @@ class TestParseLLMResponse:
 
 class TestClassifyBatch:
     @patch(
-        "mem_agent.modules.classifier.call_deepseek",
+        "soul_agent.modules.classifier.call_deepseek",
         return_value=json.dumps([
             {
                 "category": "coding",
@@ -124,8 +124,8 @@ class TestClassifyBatch:
     def test_with_llm_response(self, mock_llm):
         from datetime import datetime
 
-        from mem_agent.core.queue import ClassifiedItem, IngestItem
-        from mem_agent.modules.classifier import classify_batch
+        from soul_agent.core.queue import ClassifiedItem, IngestItem
+        from soul_agent.modules.classifier import classify_batch
 
         items = [
             IngestItem(
@@ -145,14 +145,14 @@ class TestClassifyBatch:
         mock_llm.assert_called_once()
 
     @patch(
-        "mem_agent.modules.classifier.call_deepseek",
+        "soul_agent.modules.classifier.call_deepseek",
         return_value="",
     )
     def test_fallback_on_empty_llm_response(self, mock_llm):
         from datetime import datetime
 
-        from mem_agent.core.queue import ClassifiedItem, IngestItem
-        from mem_agent.modules.classifier import classify_batch
+        from soul_agent.core.queue import ClassifiedItem, IngestItem
+        from soul_agent.modules.classifier import classify_batch
 
         items = [
             IngestItem(
@@ -170,7 +170,7 @@ class TestClassifyBatch:
         assert result[0].importance == 3
 
     @patch(
-        "mem_agent.modules.classifier.call_deepseek",
+        "soul_agent.modules.classifier.call_deepseek",
         return_value=json.dumps([
             {
                 "category": "work",
@@ -186,8 +186,8 @@ class TestClassifyBatch:
     def test_detects_new_task_action_type(self, mock_llm):
         from datetime import datetime
 
-        from mem_agent.core.queue import ClassifiedItem, IngestItem
-        from mem_agent.modules.classifier import classify_batch
+        from soul_agent.core.queue import ClassifiedItem, IngestItem
+        from soul_agent.modules.classifier import classify_batch
 
         items = [
             IngestItem(

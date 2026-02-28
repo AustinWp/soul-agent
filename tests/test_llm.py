@@ -9,9 +9,9 @@ import pytest
 
 class TestCallDeepseek:
     @patch("openai.OpenAI")
-    @patch("mem_agent.core.config.get_deepseek_api_key", return_value="sk-test")
+    @patch("soul_agent.core.config.get_deepseek_api_key", return_value="sk-test")
     def test_basic_call(self, mock_key, mock_openai_cls):
-        from mem_agent.core.llm import call_deepseek
+        from soul_agent.core.llm import call_deepseek
 
         mock_client = MagicMock()
         mock_openai_cls.return_value = mock_client
@@ -34,9 +34,9 @@ class TestCallDeepseek:
         assert messages[1]["role"] == "user"
 
     @patch("openai.OpenAI")
-    @patch("mem_agent.core.config.get_deepseek_api_key", return_value="sk-test")
+    @patch("soul_agent.core.config.get_deepseek_api_key", return_value="sk-test")
     def test_no_system_prompt(self, mock_key, mock_openai_cls):
-        from mem_agent.core.llm import call_deepseek
+        from soul_agent.core.llm import call_deepseek
 
         mock_client = MagicMock()
         mock_openai_cls.return_value = mock_client
@@ -52,17 +52,17 @@ class TestCallDeepseek:
         assert len(messages) == 1
         assert messages[0]["role"] == "user"
 
-    @patch("mem_agent.core.config.get_deepseek_api_key", return_value="")
+    @patch("soul_agent.core.config.get_deepseek_api_key", return_value="")
     def test_no_api_key_returns_empty(self, mock_key):
-        from mem_agent.core.llm import call_deepseek
+        from soul_agent.core.llm import call_deepseek
 
         result = call_deepseek("hello")
         assert result == ""
 
     @patch("openai.OpenAI")
-    @patch("mem_agent.core.config.get_deepseek_api_key", return_value="sk-test")
+    @patch("soul_agent.core.config.get_deepseek_api_key", return_value="sk-test")
     def test_api_error_returns_empty(self, mock_key, mock_openai_cls):
-        from mem_agent.core.llm import call_deepseek
+        from soul_agent.core.llm import call_deepseek
 
         mock_client = MagicMock()
         mock_openai_cls.return_value = mock_client
@@ -72,9 +72,9 @@ class TestCallDeepseek:
         assert result == ""
 
     @patch("openai.OpenAI")
-    @patch("mem_agent.core.config.get_deepseek_api_key", return_value="sk-test")
+    @patch("soul_agent.core.config.get_deepseek_api_key", return_value="sk-test")
     def test_none_content_returns_empty(self, mock_key, mock_openai_cls):
-        from mem_agent.core.llm import call_deepseek
+        from soul_agent.core.llm import call_deepseek
 
         mock_client = MagicMock()
         mock_openai_cls.return_value = mock_client

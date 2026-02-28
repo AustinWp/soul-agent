@@ -5,7 +5,7 @@ from unittest.mock import MagicMock
 
 class TestUpdateTodoActivity:
     def test_add_activity_to_existing_todo(self):
-        from mem_agent.modules.todo import update_todo_activity
+        from soul_agent.modules.todo import update_todo_activity
         engine = MagicMock()
         engine.list_resources.return_value = ["task-a1b2.md"]
         engine.read_resource.return_value = "---\nid: a1b2c3d4\nstatus: active\n---\nDo something"
@@ -14,7 +14,7 @@ class TestUpdateTodoActivity:
         engine.write_resource.assert_called_once()
 
     def test_activity_not_found(self):
-        from mem_agent.modules.todo import update_todo_activity
+        from soul_agent.modules.todo import update_todo_activity
         engine = MagicMock()
         engine.list_resources.return_value = []
         result = update_todo_activity("nonexist", "note", engine)
@@ -23,7 +23,7 @@ class TestUpdateTodoActivity:
 
 class TestGetStalledTodos:
     def test_stalled_todo_detected(self):
-        from mem_agent.modules.todo import get_stalled_todos
+        from soul_agent.modules.todo import get_stalled_todos
         engine = MagicMock()
         engine.list_resources.return_value = ["task1.md"]
         engine.read_resource.return_value = "---\nid: a1b2c3d4\nstatus: active\nlast_activity: 2026-02-20\n---\nOld task"
@@ -33,7 +33,7 @@ class TestGetStalledTodos:
 
     def test_active_todo_not_stalled(self):
         from datetime import date
-        from mem_agent.modules.todo import get_stalled_todos
+        from soul_agent.modules.todo import get_stalled_todos
         engine = MagicMock()
         engine.list_resources.return_value = ["task1.md"]
         today = date.today().isoformat()

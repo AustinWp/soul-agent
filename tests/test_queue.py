@@ -9,7 +9,7 @@ class TestIngestItem:
     def test_create_basic(self):
         from datetime import datetime
 
-        from mem_agent.core.queue import IngestItem
+        from soul_agent.core.queue import IngestItem
 
         ts = datetime(2026, 1, 15, 10, 30, 0)
         item = IngestItem(text="hello world", source="note", timestamp=ts)
@@ -21,7 +21,7 @@ class TestIngestItem:
     def test_create_with_meta(self):
         from datetime import datetime
 
-        from mem_agent.core.queue import IngestItem
+        from soul_agent.core.queue import IngestItem
 
         ts = datetime(2026, 1, 15, 10, 30, 0)
         item = IngestItem(
@@ -38,7 +38,7 @@ class TestClassifiedItem:
     def test_create_all_fields(self):
         from datetime import datetime
 
-        from mem_agent.core.queue import ClassifiedItem
+        from soul_agent.core.queue import ClassifiedItem
 
         ts = datetime(2026, 2, 1, 8, 0, 0)
         item = ClassifiedItem(
@@ -69,7 +69,7 @@ class TestClassifiedItem:
     def test_create_no_action(self):
         from datetime import datetime
 
-        from mem_agent.core.queue import ClassifiedItem
+        from soul_agent.core.queue import ClassifiedItem
 
         ts = datetime(2026, 2, 1, 9, 0, 0)
         item = ClassifiedItem(
@@ -90,7 +90,7 @@ class TestIngestQueue:
     def test_put_and_get_basic(self):
         from datetime import datetime
 
-        from mem_agent.core.queue import IngestItem, IngestQueue
+        from soul_agent.core.queue import IngestItem, IngestQueue
 
         q = IngestQueue(batch_size=1, flush_interval=5.0)
         ts = datetime(2026, 2, 1, 10, 0, 0)
@@ -108,7 +108,7 @@ class TestIngestQueue:
     def test_batch_trigger_by_count(self):
         from datetime import datetime
 
-        from mem_agent.core.queue import IngestItem, IngestQueue
+        from soul_agent.core.queue import IngestItem, IngestQueue
 
         q = IngestQueue(batch_size=3, flush_interval=60.0)
         for i in range(3):
@@ -121,7 +121,7 @@ class TestIngestQueue:
     def test_dedup_same_content_within_window(self):
         from datetime import datetime
 
-        from mem_agent.core.queue import IngestItem, IngestQueue
+        from soul_agent.core.queue import IngestItem, IngestQueue
 
         q = IngestQueue(batch_size=10, flush_interval=60.0, dedup_window=300.0)
         ts = datetime(2026, 2, 1, 10, 0, 0)
@@ -136,7 +136,7 @@ class TestIngestQueue:
     def test_no_dedup_for_different_content(self):
         from datetime import datetime
 
-        from mem_agent.core.queue import IngestItem, IngestQueue
+        from soul_agent.core.queue import IngestItem, IngestQueue
 
         q = IngestQueue(batch_size=10, flush_interval=60.0, dedup_window=300.0)
         ts = datetime(2026, 2, 1, 10, 0, 0)
@@ -152,7 +152,7 @@ class TestIngestQueue:
         import time
         from datetime import datetime
 
-        from mem_agent.core.queue import IngestItem, IngestQueue
+        from soul_agent.core.queue import IngestItem, IngestQueue
 
         q = IngestQueue(batch_size=100, flush_interval=0.3)
         ts = datetime(2026, 2, 1, 10, 0, 0)

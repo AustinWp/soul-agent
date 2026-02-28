@@ -1,0 +1,9 @@
+{
+  "vault_path": "/Users/austin/Desktop/我的知识库/数字灵魂",
+  "llm": {
+    "provider": "openai",
+    "model": "deepseek-chat",
+    "api_key": "${DEEPSEEK_API_KEY}",
+    "api_base": "https://api.deepseek.com/v1"
+  }
+}

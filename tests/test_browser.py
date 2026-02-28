@@ -8,61 +8,61 @@ import tempfile
 
 class TestShouldSkipUrl:
     def test_skip_chrome_internal(self):
-        from mem_agent.modules.browser import _should_skip_url
+        from soul_agent.modules.browser import _should_skip_url
 
         assert _should_skip_url("chrome://settings") is True
 
     def test_skip_chrome_extension(self):
-        from mem_agent.modules.browser import _should_skip_url
+        from soul_agent.modules.browser import _should_skip_url
 
         assert _should_skip_url("chrome-extension://abc/popup.html") is True
 
     def test_skip_about_blank(self):
-        from mem_agent.modules.browser import _should_skip_url
+        from soul_agent.modules.browser import _should_skip_url
 
         assert _should_skip_url("about:blank") is True
 
     def test_allow_https(self):
-        from mem_agent.modules.browser import _should_skip_url
+        from soul_agent.modules.browser import _should_skip_url
 
         assert _should_skip_url("https://example.com") is False
 
     def test_allow_http(self):
-        from mem_agent.modules.browser import _should_skip_url
+        from soul_agent.modules.browser import _should_skip_url
 
         assert _should_skip_url("http://example.com/page") is False
 
     def test_skip_empty_url(self):
-        from mem_agent.modules.browser import _should_skip_url
+        from soul_agent.modules.browser import _should_skip_url
 
         assert _should_skip_url("") is True
 
     def test_skip_binary_extension(self):
-        from mem_agent.modules.browser import _should_skip_url
+        from soul_agent.modules.browser import _should_skip_url
 
         assert _should_skip_url("https://example.com/file.pdf") is True
         assert _should_skip_url("https://example.com/image.png") is True
         assert _should_skip_url("https://example.com/archive.zip") is True
 
     def test_allow_html_extension(self):
-        from mem_agent.modules.browser import _should_skip_url
+        from soul_agent.modules.browser import _should_skip_url
 
         assert _should_skip_url("https://example.com/page.html") is False
 
     def test_skip_data_url(self):
-        from mem_agent.modules.browser import _should_skip_url
+        from soul_agent.modules.browser import _should_skip_url
 
         assert _should_skip_url("data:text/html,<h1>test</h1>") is True
 
     def test_skip_devtools(self):
-        from mem_agent.modules.browser import _should_skip_url
+        from soul_agent.modules.browser import _should_skip_url
 
         assert _should_skip_url("devtools://devtools/bundled/inspector.html") is True
 
 
 class TestCopyDb:
     def test_copy_existing_db(self):
-        from mem_agent.modules.browser import _copy_db
+        from soul_agent.modules.browser import _copy_db
 
         with tempfile.NamedTemporaryFile(suffix=".sqlite", delete=False) as f:
             f.write(b"test data")
@@ -79,7 +79,7 @@ class TestCopyDb:
             os.unlink(src)
 
     def test_copy_nonexistent_db(self):
-        from mem_agent.modules.browser import _copy_db
+        from soul_agent.modules.browser import _copy_db
 
         result = _copy_db("/tmp/nonexistent_browser_db_12345.sqlite")
         assert result is None
@@ -137,7 +137,7 @@ class TestReadChromeHistory:
         return tmp.name
 
     def test_read_chrome_history_basic(self):
-        from mem_agent.modules.browser import read_chrome_history
+        from soul_agent.modules.browser import read_chrome_history
 
         db_path = self._create_chrome_db()
         try:
@@ -150,7 +150,7 @@ class TestReadChromeHistory:
             os.unlink(db_path)
 
     def test_read_chrome_history_filters_internal(self):
-        from mem_agent.modules.browser import read_chrome_history
+        from soul_agent.modules.browser import read_chrome_history
 
         db_path = self._create_chrome_db()
         try:
@@ -161,7 +161,7 @@ class TestReadChromeHistory:
             os.unlink(db_path)
 
     def test_read_chrome_history_since_filter(self):
-        from mem_agent.modules.browser import read_chrome_history
+        from soul_agent.modules.browser import read_chrome_history
 
         db_path = self._create_chrome_db()
         try:
@@ -173,7 +173,7 @@ class TestReadChromeHistory:
             os.unlink(db_path)
 
     def test_read_chrome_history_missing_db(self):
-        from mem_agent.modules.browser import read_chrome_history
+        from soul_agent.modules.browser import read_chrome_history
 
         results = read_chrome_history(db_path="/tmp/nonexistent_chrome_db_99999.sqlite")
         assert results == []
@@ -228,7 +228,7 @@ class TestReadSafariHistory:
         return tmp.name
 
     def test_read_safari_history_basic(self):
-        from mem_agent.modules.browser import read_safari_history
+        from soul_agent.modules.browser import read_safari_history
 
         db_path = self._create_safari_db()
         try:
@@ -240,7 +240,7 @@ class TestReadSafariHistory:
             os.unlink(db_path)
 
     def test_read_safari_history_missing_db(self):
-        from mem_agent.modules.browser import read_safari_history
+        from soul_agent.modules.browser import read_safari_history
 
         results = read_safari_history(db_path="/tmp/nonexistent_safari_db_99999.sqlite")
         assert results == []
@@ -248,27 +248,27 @@ class TestReadSafariHistory:
 
 class TestBinaryExtensionFilter:
     def test_binary_pdf_filtered(self):
-        from mem_agent.modules.browser import _should_skip_url
+        from soul_agent.modules.browser import _should_skip_url
 
         assert _should_skip_url("https://example.com/document.pdf") is True
 
     def test_binary_jpg_filtered(self):
-        from mem_agent.modules.browser import _should_skip_url
+        from soul_agent.modules.browser import _should_skip_url
 
         assert _should_skip_url("https://cdn.example.com/photo.jpg") is True
 
     def test_binary_exe_filtered(self):
-        from mem_agent.modules.browser import _should_skip_url
+        from soul_agent.modules.browser import _should_skip_url
 
         assert _should_skip_url("https://download.example.com/setup.exe") is True
 
     def test_binary_with_query_params(self):
-        from mem_agent.modules.browser import _should_skip_url
+        from soul_agent.modules.browser import _should_skip_url
 
         assert _should_skip_url("https://example.com/file.zip?v=2") is True
 
     def test_non_binary_passes(self):
-        from mem_agent.modules.browser import _should_skip_url
+        from soul_agent.modules.browser import _should_skip_url
 
         assert _should_skip_url("https://example.com/article") is False
         assert _should_skip_url("https://example.com/page.html") is False
