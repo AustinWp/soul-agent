@@ -55,6 +55,7 @@ def get_vault_path(config: dict) -> Path:
 
 def get_deepseek_api_key(config: dict | None = None) -> str:
     """Extract DeepSeek API key from config or environment."""
+    _load_dotenv()
     if config:
         key = config.get("llm", {}).get("api_key", "")
         if key and not key.startswith("${"):
