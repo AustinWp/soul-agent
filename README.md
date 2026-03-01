@@ -68,7 +68,7 @@ python -m pytest tests/test_pipeline.py -v
 
 ## 配置
 
-编辑 `config/mem.json`：
+编辑 `config/soul.json`：
 
 ```json
 {

@@ -1,12 +1,12 @@
 # soul-agent
 
-Personal digital soul — captures, classifies, and reflects on daily activity.
+个人数字灵魂 — 捕获、分类并反思每日活动。
 
-## Vision
+## 愿景
 
 构建一个与用户同步的数字灵魂：基于每天的所有输入给出洞察和建议，跟进待办和在研项目。
 
-## Architecture
+## 架构
 
 ```
 输入源 (5路)              分类引擎              存储 (Obsidian Vault)
@@ -18,37 +18,39 @@ Keystroke ──┤   (batch+dedup)  (classify)      insights/*.md
 ClaudeCode ─┘                                  core/MEMORY.md
 ```
 
-- **后台服务**: FastAPI daemon on `localhost:8330`, 7个 daemon 线程
-- **CLI**: `soul` 命令 (Typer), 通过 HTTP 调用 service 或直连 vault
-- **MCP Server**: 为 LLM 提供 tool/resource 接口
-- **LLM**: DeepSeek Chat API (OpenAI-compatible)
-- **存储**: Obsidian vault, markdown + YAML frontmatter
+- **后台服务**: FastAPI daemon，监听 `localhost:8330`，7 个 daemon 线程
+- **CLI**: `soul` 命令 (Typer)，通过 HTTP 调用 service 或直连 vault
+- **MCP Server**: 为 LLM 提供 tool/resource 接口（tool 前缀 `soul_`，资源 URI 前缀 `soul://`）
+- **LLM**: DeepSeek Chat API (OpenAI 兼容)
+- **存储**: Obsidian vault，markdown + YAML frontmatter
+- **自启动**: LaunchAgent plist，通过 `soul service install/uninstall` 管理
 
-## Key Paths
+## 关键路径
 
-| What | Path |
+| 内容 | 路径 |
 |------|------|
 | Vault | `/Users/austin/Desktop/我的知识库/数字灵魂` |
-| Config | `config/mem.json` |
-| PID/Logs | `~/.soul-agent/` |
-| CLI entry | `soul_agent/cli.py` → `pyproject.toml [project.scripts] soul` |
-| Service | `soul_agent/service.py` (FastAPI, port 8330) |
-| Core engine | `soul_agent/core/vault.py` (VaultEngine singleton) |
-| Queue/Pipeline | `soul_agent/core/queue.py` → `soul_agent/modules/pipeline.py` |
-| Classification | `soul_agent/modules/classifier.py` |
+| 配置文件 | `config/soul.json` |
+| PID/日志 | `~/.soul-agent/` |
+| CLI 入口 | `soul_agent/cli.py` → `pyproject.toml [project.scripts] soul` |
+| 服务 | `soul_agent/service.py` (FastAPI, 端口 8330) |
+| 核心引擎 | `soul_agent/core/vault.py` (VaultEngine 单例) |
+| 队列/管线 | `soul_agent/core/queue.py` → `soul_agent/modules/pipeline.py` |
+| 分类器 | `soul_agent/modules/classifier.py` |
+| LaunchAgent 模板 | `soul_agent/launchd/com.soul-agent.daemon.plist` |
 
-## Module Map
+## 模块一览
 
-| Module | Role |
+| 模块 | 作用 |
 |--------|------|
-| `daily_log` | 时间序列日志, 带内存缓存 |
+| `daily_log` | 时间序列日志，带内存缓存 |
 | `note` | 手动记录入口 |
 | `todo` | 待办 CRUD + 优先级 + 停滞检测 |
 | `clipboard` | macOS 剪贴板轮询 (3s) |
 | `browser` | Chrome/Safari 历史轮询 (5min) |
 | `filewatcher` | Desktop/Documents/Downloads 文件变动 |
 | `input_hook` | macOS CGEventTap 键盘捕获 |
-| `classifier` | LLM 批量分类 (6 categories) |
+| `classifier` | LLM 批量分类 (6 个类别) |
 | `pipeline` | 分类 → 日志 → 动作分发 |
 | `insight` | 两阶段日报 (语义理解 + 深度建议) |
 | `compact` | 周报/月报聚合 |
@@ -56,32 +58,45 @@ ClaudeCode ─┘                                  core/MEMORY.md
 | `terminal` | 终端命令捕获 |
 | `claude_code` | Claude Code hook 集成 |
 
-## Categories
+## 分类类别
 
 `coding` | `work` | `learning` | `communication` | `browsing` | `life`
 
-## Development
+## 开发
 
 ```bash
-# Install
+# 安装
 pip install -e .
 
-# Run tests
+# 运行测试
 python -m pytest tests/ -v
 
-# Start service
+# 启动服务
 soul service start
 
-# Check status
+# 查看状态
 soul service status
+
+# 安装开机自启
+soul service install
+
+# 卸载开机自启
+soul service uninstall
 ```
 
-## Conventions
+## Shell Hook 环境变量
 
-- Python 3.10+, type hints throughout
-- Modules are stateless functions + module-level state dicts (no classes except VaultEngine)
-- Frontmatter (YAML) for metadata on all vault files
-- Thread-safe: `threading.Lock` guards shared state
-- Graceful LLM fallback: all LLM calls have rule-based fallback on API failure
-- Tests use tmp_path fixtures, mock LLM calls
-- Chinese language for user-facing insight/report content
+zsh hook 和 quick_note 脚本使用以下环境变量（前缀均为 `SOUL_AGENT_`）：
+
+- `SOUL_AGENT_URL` — 服务地址（默认 `http://localhost:8330`）
+- `SOUL_AGENT_ENABLED` — 是否启用 hook
+
+## 开发约定
+
+- Python 3.10+，全程使用类型注解
+- 模块为无状态函数 + 模块级状态字典（仅 VaultEngine 使用类）
+- 所有 vault 文件使用 Frontmatter (YAML) 元数据
+- 线程安全：`threading.Lock` 保护共享状态
+- LLM 优雅降级：所有 LLM 调用在 API 失败时有基于规则的兜底
+- 测试使用 `tmp_path` fixture，mock LLM 调用
+- 面向用户的洞察/报告内容使用中文

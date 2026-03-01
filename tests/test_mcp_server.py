@@ -8,14 +8,14 @@ class TestMCPToolDefinitions:
         from soul_agent.mcp_server import TOOL_DEFINITIONS
 
         names = [t["name"] for t in TOOL_DEFINITIONS]
-        assert "mem_search" in names
-        assert "mem_recall" in names
-        assert "mem_insight" in names
-        assert "mem_categories" in names
-        assert "mem_todos" in names
-        assert "mem_suggest" in names
-        assert "mem_note" in names
-        assert "mem_task_progress" in names
+        assert "soul_search" in names
+        assert "soul_recall" in names
+        assert "soul_insight" in names
+        assert "soul_categories" in names
+        assert "soul_todos" in names
+        assert "soul_suggest" in names
+        assert "soul_note" in names
+        assert "soul_task_progress" in names
 
     def test_each_tool_has_description(self):
         from soul_agent.mcp_server import TOOL_DEFINITIONS
@@ -36,12 +36,12 @@ class TestMCPResourceDefinitions:
         from soul_agent.mcp_server import RESOURCE_DEFINITIONS
 
         uris = [r["uri"] for r in RESOURCE_DEFINITIONS]
-        assert "mem://insight/today" in uris
-        assert "mem://insight/week" in uris
-        assert "mem://todos/active" in uris
-        assert "mem://todos/stalled" in uris
-        assert "mem://core/memory" in uris
-        assert "mem://stats/categories" in uris
+        assert "soul://insight/today" in uris
+        assert "soul://insight/week" in uris
+        assert "soul://todos/active" in uris
+        assert "soul://todos/stalled" in uris
+        assert "soul://core/memory" in uris
+        assert "soul://stats/categories" in uris
 
     def test_each_resource_has_name_and_description(self):
         from soul_agent.mcp_server import RESOURCE_DEFINITIONS

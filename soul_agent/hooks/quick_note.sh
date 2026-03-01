@@ -5,7 +5,7 @@
 # Usage: bash /path/to/quick_note.sh
 # Bind to a global shortcut via Automator / Shortcuts / Karabiner.
 
-MEM_AGENT_ENDPOINT="${MEM_AGENT_URL:-http://localhost:8330}"
+SOUL_AGENT_ENDPOINT="${SOUL_AGENT_URL:-http://localhost:8330}"
 
 # Show input dialog
 note_text=$(osascript -e 'display dialog "Quick Note:" default answer "" buttons {"Cancel","Save"} default button "Save"' \
@@ -21,7 +21,7 @@ json_body=$(python3 -c "import json,sys; print(json.dumps({'text': sys.argv[1]})
 
 # POST to daemon
 http_code=$(curl -s -o /dev/null -w "%{http_code}" --connect-timeout 2 \
-    -X POST "$MEM_AGENT_ENDPOINT/note" \
+    -X POST "$SOUL_AGENT_ENDPOINT/note" \
     -H "Content-Type: application/json" \
     -d "$json_body")
 

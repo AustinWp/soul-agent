@@ -7,7 +7,7 @@ import os
 from pathlib import Path
 
 
-DEFAULT_CONFIG_PATH = Path(__file__).parent.parent.parent / "config" / "mem.json"
+DEFAULT_CONFIG_PATH = Path(__file__).parent.parent.parent / "config" / "soul.json"
 _ENV_FILE = Path(__file__).parent.parent.parent / ".env"
 
 

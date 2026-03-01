@@ -28,7 +28,7 @@ SERVICE_HOST = "127.0.0.1"
 SERVICE_PORT = 8330
 PID_DIR = Path.home() / ".soul-agent"
 PID_FILE = PID_DIR / "daemon.pid"
-DEFAULT_CONFIG = Path(__file__).parent.parent / "config" / "mem.json"
+DEFAULT_CONFIG = Path(__file__).parent.parent / "config" / "soul.json"
 _ENV_FILE = Path(__file__).parent.parent / ".env"
 
 

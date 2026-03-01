@@ -10,8 +10,8 @@ import typer
 from rich.console import Console
 
 app = typer.Typer(
-    name="mem",
-    help="Personal Agent memory system — notes, todos, search, and recall.",
+    name="soul",
+    help="Personal digital soul — captures, classifies, and reflects on daily activity.",
     no_args_is_help=True,
 )
 todo_app = typer.Typer(help="Manage todo items.")
@@ -39,7 +39,7 @@ app.add_typer(soul_app, name="soul")
 console = Console()
 
 # Default config path
-DEFAULT_CONFIG = Path(__file__).parent.parent / "config" / "mem.json"
+DEFAULT_CONFIG = Path(__file__).parent.parent / "config" / "soul.json"
 
 
 def _init_engine(config: str | None = None) -> None:
@@ -343,6 +343,75 @@ def svc_status() -> None:
     service_status()
 
 
+@service_app.command("install")
+def svc_install() -> None:
+    """Install LaunchAgent so soul-agent starts automatically on login."""
+    import shutil
+    import sys
+
+    plist_template = Path(__file__).parent / "launchd" / "com.soul-agent.daemon.plist"
+    if not plist_template.exists():
+        console.print("[red]Plist template not found.[/red]")
+        return
+
+    target_dir = Path.home() / "Library" / "LaunchAgents"
+    target_dir.mkdir(parents=True, exist_ok=True)
+    target = target_dir / "com.soul-agent.daemon.plist"
+
+    python_path = sys.executable
+    working_dir = str(Path(__file__).parent.parent.resolve())
+    log_dir = str(Path.home() / ".soul-agent")
+    Path(log_dir).mkdir(parents=True, exist_ok=True)
+
+    content = plist_template.read_text(encoding="utf-8")
+    content = content.replace("__PYTHON_PATH__", python_path)
+    content = content.replace("__WORKING_DIR__", working_dir)
+    content = content.replace("__LOG_DIR__", log_dir)
+
+    # Inject environment variables from .env if it exists
+    env_file = Path(working_dir) / ".env"
+    if env_file.exists():
+        env_lines = []
+        for line in env_file.read_text(encoding="utf-8").splitlines():
+            line = line.strip()
+            if not line or line.startswith("#") or "=" not in line:
+                continue
+            key, _, value = line.partition("=")
+            key, value = key.strip(), value.strip()
+            if key and value:
+                env_lines.append(f"        <key>{key}</key>\n        <string>{value}</string>")
+        if env_lines:
+            # Insert env vars into EnvironmentVariables dict before closing </dict>
+            env_block = "\n".join(env_lines)
+            content = content.replace(
+                "        <key>PATH</key>",
+                env_block + "\n        <key>PATH</key>",
+            )
+
+    target.write_text(content, encoding="utf-8")
+    console.print(f"[green]LaunchAgent installed:[/green] {target}")
+
+    import subprocess
+
+    subprocess.run(["launchctl", "load", str(target)], check=False)
+    console.print("[green]LaunchAgent loaded. soul-agent will start on login.[/green]")
+
+
+@service_app.command("uninstall")
+def svc_uninstall() -> None:
+    """Uninstall LaunchAgent (stops auto-start on login)."""
+    import subprocess
+
+    target = Path.home() / "Library" / "LaunchAgents" / "com.soul-agent.daemon.plist"
+    if not target.exists():
+        console.print("[dim]LaunchAgent not installed.[/dim]")
+        return
+
+    subprocess.run(["launchctl", "unload", str(target)], check=False)
+    target.unlink(missing_ok=True)
+    console.print("[green]LaunchAgent uninstalled.[/green]")
+
+
 # ── Compact ────────────────────────────────────────────────────────────────
 
 @app.command()
@@ -399,7 +468,7 @@ def core_show(
         if content:
             console.print(content)
         else:
-            console.print("[dim]No permanent memory found. Use 'mem core edit' to create one.[/dim]")
+            console.print("[dim]No permanent memory found. Use 'soul core edit' to create one.[/dim]")
         return
 
     _init_engine(config)
@@ -409,7 +478,7 @@ def core_show(
     if content:
         console.print(content)
     else:
-        console.print("[dim]No permanent memory found. Use 'mem core edit' to create one.[/dim]")
+        console.print("[dim]No permanent memory found. Use 'soul core edit' to create one.[/dim]")
 
 
 @core_app.command("edit")
@@ -612,7 +681,7 @@ def insight_suggest(
 def ihook_start() -> None:
     """Start input hook in foreground (captures keystrokes, sends to service)."""
     if not _service_is_running():
-        console.print("[yellow]Service not running. Start it first: mem service start[/yellow]")
+        console.print("[yellow]Service not running. Start it first: soul service start[/yellow]")
         return
     from soul_agent.modules.input_hook import run_standalone
 
@@ -792,7 +861,7 @@ def soul_show(
         if content:
             console.print(content)
         else:
-            console.print("[dim]No soul found. Use 'mem soul init' to create one.[/dim]")
+            console.print("[dim]No soul found. Use 'soul soul init' to create one.[/dim]")
         return
 
     _init_engine(config)
@@ -803,7 +872,7 @@ def soul_show(
     if content:
         console.print(content)
     else:
-        console.print("[dim]No soul found. Use 'mem soul init' to create one.[/dim]")
+        console.print("[dim]No soul found. Use 'soul soul init' to create one.[/dim]")
 
 
 @soul_app.command("init")
@@ -882,7 +951,7 @@ def soul_evolve(
     engine = _get_engine()
 
     if not load_soul(engine):
-        console.print("[yellow]No soul found. Use 'mem soul init' first.[/yellow]")
+        console.print("[yellow]No soul found. Use 'soul soul init' first.[/yellow]")
         return
 
     # Gather recent memories as evolution input
