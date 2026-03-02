@@ -9,19 +9,20 @@
 ## 架构
 
 ```
-输入源 (5路)              分类引擎              存储 (Obsidian Vault)
+输入源 (6路)              分类引擎              存储 (Obsidian Vault)
 ─────────────            ────────              ──────────────────
 Clipboard ──┐                                  logs/YYYY-MM-DD.md
-Browser ────┤            DeepSeek LLM          todos/active/*.md
-FileWatch ──┼─→ IngestQueue ─→ Pipeline ─→     todos/done/*.md
-Keystroke ──┤   (batch+dedup)  (classify)      insights/*.md
+Browser ────┤                                  todos/active/*.md
+FileWatch ──┤            DeepSeek LLM          todos/done/*.md
+Keystroke ──┼─→ IngestQueue ─→ Pipeline ─→     insights/*.md
+Terminal ───┤   (batch+dedup)  (classify)      memory/*.md
 ClaudeCode ─┘                                  core/MEMORY.md
 ```
 
 - **后台服务**: FastAPI daemon，监听 `localhost:8330`，7 个 daemon 线程
 - **CLI**: `soul` 命令 (Typer)，通过 HTTP 调用 service 或直连 vault
-- **MCP Server**: 为 LLM 提供 tool/resource 接口（tool 前缀 `soul_`，资源 URI 前缀 `soul://`）
-- **LLM**: DeepSeek Chat API (OpenAI 兼容)
+- **MCP Server**: `soul_agent/mcp_server.py`，8 个 tool（前缀 `soul_`）+ 6 个 resource（URI 前缀 `soul://`）
+- **LLM**: DeepSeek Chat API (OpenAI 兼容)，失败时规则兜底
 - **存储**: Obsidian vault，markdown + YAML frontmatter
 - **自启动**: LaunchAgent plist，通过 `soul service install/uninstall` 管理
 
@@ -34,29 +35,58 @@ ClaudeCode ─┘                                  core/MEMORY.md
 | PID/日志 | `~/.soul-agent/` |
 | CLI 入口 | `soul_agent/cli.py` → `pyproject.toml [project.scripts] soul` |
 | 服务 | `soul_agent/service.py` (FastAPI, 端口 8330) |
+| MCP Server | `soul_agent/mcp_server.py` |
 | 核心引擎 | `soul_agent/core/vault.py` (VaultEngine 单例) |
+| 配置加载 | `soul_agent/core/config.py` |
+| LLM 封装 | `soul_agent/core/llm.py` |
 | 队列/管线 | `soul_agent/core/queue.py` → `soul_agent/modules/pipeline.py` |
+| Frontmatter | `soul_agent/core/frontmatter.py` |
 | 分类器 | `soul_agent/modules/classifier.py` |
 | LaunchAgent 模板 | `soul_agent/launchd/com.soul-agent.daemon.plist` |
+| Claude Code hook | `soul_agent/hooks/claude_code_hook.sh` |
 
 ## 模块一览
 
-| 模块 | 作用 |
-|--------|------|
-| `daily_log` | 时间序列日志，带内存缓存 |
-| `note` | 手动记录入口 |
-| `todo` | 待办 CRUD + 优先级 + 停滞检测 |
-| `clipboard` | macOS 剪贴板轮询 (3s) |
-| `browser` | Chrome/Safari 历史轮询 (5min) |
-| `filewatcher` | Desktop/Documents/Downloads 文件变动 |
-| `input_hook` | macOS CGEventTap 键盘捕获 |
-| `classifier` | LLM 批量分类 (6 个类别) |
-| `pipeline` | 分类 → 日志 → 动作分发 |
-| `insight` | 两阶段日报 (语义理解 + 深度建议) |
-| `compact` | 周报/月报聚合 |
-| `recall` | 记忆检索 + 今日/本周回顾 |
-| `terminal` | 终端命令捕获 |
-| `claude_code` | Claude Code hook 集成 |
+| 模块 | 文件 | 作用 |
+|------|------|------|
+| `daily_log` | `modules/daily_log.py` | 时间序列日志，带内存缓存 |
+| `note` | `modules/note.py` | 手动记录入口 |
+| `todo` | `modules/todo.py` | 待办 CRUD + 优先级 + 停滞检测 |
+| `clipboard` | `modules/clipboard.py` | macOS 剪贴板轮询 (3s) |
+| `browser` | `modules/browser.py` | Chrome/Safari 历史轮询 (5min) |
+| `filewatcher` | `modules/filewatcher.py` | Desktop/Documents/Downloads 文件变动 |
+| `input_hook` | `modules/input_hook.py` | macOS CGEventTap 键盘捕获 |
+| `terminal` | `modules/terminal.py` | zsh hook 终端命令捕获 |
+| `claude_code` | `modules/claude_code.py` | Claude Code postToolUse hook 集成 |
+| `classifier` | `modules/classifier.py` | LLM 批量分类 (6 个类别) |
+| `pipeline` | `modules/pipeline.py` | 分类 → 日志 → 动作分发 |
+| `insight` | `modules/insight.py` | 两阶段日报/周报 (语义理解 + 深度建议) |
+| `compact` | `modules/compact.py` | 周报/月报聚合 |
+| `recall` | `modules/recall.py` | 记忆检索 + 今日/本周回顾 |
+| `memory` | `modules/memory.py` | 长期记忆片段管理 |
+| `soul` | `modules/soul.py` | 数字灵魂画像管理 |
+
+## MCP Server 接口
+
+**Tools (8)**: `soul_search` / `soul_recall` / `soul_insight` / `soul_categories` / `soul_todos` / `soul_suggest` / `soul_note` / `soul_task_progress`
+
+**Resources (6)**: `soul://insight/today` / `soul://insight/week` / `soul://todos/active` / `soul://todos/stalled` / `soul://core/memory` / `soul://stats/categories`
+
+## CLI 命令
+
+```
+soul note / search / recall / compact
+soul todo add|ls|done|rm
+soul insight today|week|tasks|suggest
+soul service start|stop|status|install|uninstall
+soul clipboard status
+soul terminal start|stop|status
+soul input-hook start|stop|status
+soul core show|edit
+soul memory ls|search
+soul soul init|show|chat|evolve
+soul claudecode install|uninstall
+```
 
 ## 分类类别
 
