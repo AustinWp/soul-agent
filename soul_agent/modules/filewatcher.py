@@ -5,6 +5,7 @@ from __future__ import annotations
 import logging
 import os
 import threading
+import time as _time
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import TYPE_CHECKING
@@ -37,6 +38,7 @@ IGNORE_DIRS = frozenset({
     "vectordb",
     ".agfs",
     "logs",
+    "数字灵魂",  # Ignore vault own writes
 })
 
 IGNORE_FILES = frozenset({
@@ -143,11 +145,15 @@ def _extract_preview(path: str | Path, max_chars: int = 200) -> str:
 # Watchdog handler
 # ---------------------------------------------------------------------------
 
+_DEDUP_WINDOW = 5  # seconds — suppress duplicate events for the same file
+
+
 class _FileHandler:
     """Watchdog event handler that puts file events on the ingest queue."""
 
     def __init__(self, queue: IngestQueue) -> None:
         self._queue = queue
+        self._recent: dict[str, float] = {}  # path -> last event timestamp
 
     def dispatch(self, event) -> None:  # noqa: ANN001
         """Called by watchdog for every filesystem event."""
@@ -166,19 +172,26 @@ class _FileHandler:
         if event_type not in ("created", "modified", "moved"):
             return
 
+        # Dedup: suppress created+modified double-fires within window
+        now = _time.monotonic()
+        last = self._recent.get(src_path, 0.0)
+        if now - last < _DEDUP_WINDOW:
+            return
+        self._recent[src_path] = now
+
+        # Prune stale entries periodically
+        if len(self._recent) > 200:
+            cutoff = now - _DEDUP_WINDOW * 2
+            self._recent = {k: v for k, v in self._recent.items() if v > cutoff}
+
         self._handle_file_event(src_path, event_type)
 
     def _handle_file_event(self, path: str, event_type: str) -> None:
-        """Create an IngestItem for the file event."""
+        """Create an IngestItem for the file event (filename + action only)."""
         from ..core.queue import IngestItem
 
-        preview = _extract_preview(path)
         name = Path(path).name
-
-        if preview:
-            text = f"File {event_type}: {name}\n---\n{preview}"
-        else:
-            text = f"File {event_type}: {name}"
+        text = f"File {event_type}: {name}"
 
         self._queue.put(IngestItem(
             text=text,

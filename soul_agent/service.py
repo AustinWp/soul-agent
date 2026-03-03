@@ -393,6 +393,17 @@ def create_app() -> Any:
         report = build_daily_insight(target, engine)
         return {"date": target.isoformat(), "report": report}
 
+    @app.post("/insight/generate")
+    async def post_insight_generate():
+        from datetime import date as _date
+
+        from soul_agent.modules.insight import save_daily_insight
+
+        engine = state["engine"]
+        today = _date.today()
+        report = save_daily_insight(today, engine)
+        return {"date": today.isoformat(), "report": report}
+
     @app.get("/categories")
     async def get_categories(period: str = "today"):
         from datetime import date as _date

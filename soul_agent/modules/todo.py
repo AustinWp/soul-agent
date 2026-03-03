@@ -9,6 +9,7 @@ from typing import Any
 from rich.console import Console
 from rich.table import Table
 
+from ..core.llm import call_deepseek
 from ..core.vault import get_engine
 from ..core.frontmatter import (
     build_frontmatter,
@@ -211,3 +212,83 @@ def get_stalled_todos(engine: Any = None, stale_days: int = 3) -> list[dict[str,
                 "last_activity": last,
             })
     return stalled
+
+
+def suggest_merges(dry_run: bool = True) -> list[dict[str, Any]]:
+    """Use LLM to find semantically similar todos that can be merged.
+
+    Returns a list of merge suggestions, each containing:
+    - "keep": the todo to keep (id + text)
+    - "remove": list of todos to merge into it
+    - "merged_text": suggested merged description
+    """
+    engine = get_engine()
+    todos: list[dict[str, Any]] = []
+    for name in engine.list_resources(ACTIVE_DIR):
+        if not name.endswith(".md") or name.startswith("."):
+            continue
+        content = engine.read_resource(f"{ACTIVE_DIR}/{name}")
+        if not content:
+            continue
+        fields, body = parse_frontmatter(content)
+        todos.append({
+            "id": fields.get("id", name.replace(".md", "")),
+            "text": body.strip(),
+        })
+
+    if len(todos) < 2:
+        console.print("[dim]Not enough todos to merge.[/dim]")
+        return []
+
+    todo_lines = "\n".join(f"- [{t['id']}] {t['text']}" for t in todos)
+    prompt = (
+        "以下是用户的待办列表。找出语义上重复或可以合并的条目。\n"
+        "对每组可合并的条目，输出一个 JSON 对象包含：\n"
+        '- "keep_id": 保留的待办 ID\n'
+        '- "remove_ids": 要合并删除的待办 ID 列表\n'
+        '- "merged_text": 合并后的描述文本\n\n'
+        "如果没有可合并的，返回空数组 []。\n"
+        "只返回 JSON 数组，不要 markdown 代码块。\n\n"
+        f"待办列表：\n{todo_lines}"
+    )
+
+    import json
+    raw = call_deepseek(prompt, system="你是一个任务管理助手。", max_tokens=512)
+    if not raw or not raw.strip():
+        console.print("[dim]No merge suggestions.[/dim]")
+        return []
+
+    # Parse response
+    text = raw.strip()
+    import re
+    fence = re.search(r"```(?:json)?\s*\n?(.*?)\n?\s*```", text, re.DOTALL)
+    if fence:
+        text = fence.group(1).strip()
+    try:
+        suggestions = json.loads(text)
+    except (json.JSONDecodeError, ValueError):
+        console.print("[dim]Could not parse merge suggestions.[/dim]")
+        return []
+
+    if not isinstance(suggestions, list) or not suggestions:
+        console.print("[dim]No merge suggestions found.[/dim]")
+        return []
+
+    # Display suggestions
+    for i, s in enumerate(suggestions, 1):
+        keep_id = s.get("keep_id", "?")
+        remove_ids = s.get("remove_ids", [])
+        merged = s.get("merged_text", "")
+        console.print(f"\n[bold]Merge #{i}:[/bold]")
+        console.print(f"  Keep: [cyan]{keep_id}[/cyan]")
+        console.print(f"  Remove: [red]{', '.join(remove_ids)}[/red]")
+        console.print(f"  Merged: [green]{merged}[/green]")
+
+    if not dry_run:
+        for s in suggestions:
+            remove_ids = s.get("remove_ids", [])
+            for rid in remove_ids:
+                remove_todo(rid)
+        console.print(f"\n[green]Executed {len(suggestions)} merges.[/green]")
+
+    return suggestions

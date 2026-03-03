@@ -31,16 +31,23 @@ def _get_active_todos(engine: VaultEngine) -> list[dict[str, Any]]:
 def process_batch(items: list[IngestItem], engine: VaultEngine) -> list[ClassifiedItem]:
     active_todos = _get_active_todos(engine)
     classified = classify_batch(items, active_todos, engine.config)
+    # Sources that should never auto-create todos
+    _NO_TODO_SOURCES = {"file", "clipboard", "browser"}
+
     for ci in classified:
         try:
             append_daily_log(ci.text, ci.source, engine, category=ci.category, tags=ci.tags, importance=ci.importance)
         except Exception:
             pass
         if ci.action_type == "new_task" and ci.action_detail:
-            try:
-                add_todo(ci.action_detail)
-            except Exception:
+            # Guard: skip todo creation for passive sources or low-importance items
+            if ci.source in _NO_TODO_SOURCES or ci.importance <= 2:
                 pass
+            else:
+                try:
+                    add_todo(ci.action_detail)
+                except Exception:
+                    pass
         if ci.action_type == "task_progress" and ci.related_todo_id:
             try:
                 update_todo_activity(ci.related_todo_id, ci.source, engine)

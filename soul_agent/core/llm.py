@@ -2,11 +2,14 @@
 
 from __future__ import annotations
 
+import logging
 import os
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     pass
+
+logger = logging.getLogger(__name__)
 
 # Proxy env vars that interfere with OpenAI SDK (e.g. SOCKS proxy)
 _PROXY_VARS = ("http_proxy", "https_proxy", "HTTP_PROXY", "HTTPS_PROXY", "all_proxy", "ALL_PROXY")
@@ -44,14 +47,23 @@ def call_deepseek(
             messages.append({"role": "system", "content": system})
         messages.append({"role": "user", "content": prompt})
 
-        response = client.chat.completions.create(
-            model="deepseek-chat",
-            messages=messages,
-            max_tokens=max_tokens,
-        )
+        last_err: Exception | None = None
+        for attempt in range(2):
+            try:
+                response = client.chat.completions.create(
+                    model="deepseek-chat",
+                    messages=messages,
+                    max_tokens=max_tokens,
+                )
+                return response.choices[0].message.content or ""
+            except Exception as e:
+                last_err = e
+                logger.warning("DeepSeek API attempt %d failed: %s", attempt + 1, e)
 
-        return response.choices[0].message.content or ""
-    except Exception:
+        logger.error("DeepSeek API all retries exhausted: %s", last_err)
+        return ""
+    except Exception as e:
+        logger.error("DeepSeek API setup error: %s", e)
         return ""
     finally:
         os.environ.update(saved)

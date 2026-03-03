@@ -28,26 +28,34 @@ SOURCE_CATEGORY_MAP: dict[str, str] = {
 }
 
 SYSTEM_PROMPT = (
-    "You are a classification engine for a personal memory agent. "
-    "Classify each item into exactly one category and return structured JSON."
+    "你是一个个人记忆助手的分类引擎。"
+    "将每个条目分类到恰好一个类别，并返回结构化 JSON。"
+    "所有文本字段（summary、action_detail）必须使用中文输出。"
 )
 
 BATCH_PROMPT_TEMPLATE = """\
-Classify each of the following items. For every item return a JSON object with:
-- "category": one of {valid_categories}
-- "tags": list of short keyword strings
-- "importance": integer 1-5 (1=trivial, 5=critical)
-- "summary": one-sentence summary
-- "action_type": null, "new_task", or "update_task"
-- "action_detail": string or null — description of the action if action_type is set
-- "related_todo_id": string or null — ID of an existing todo if this updates one
+对以下每个条目进行分类。每个条目返回一个 JSON 对象，包含：
+- "category": {valid_categories} 中的一个
+- "tags": 简短关键词列表（中文）
+- "importance": 整数 1-5（1=琐碎, 5=关键）
+- "summary": 一句话中文摘要
+- "action_type": null、"new_task" 或 "update_task"
+- "action_detail": 字符串或 null — 如果有 action_type 则用中文描述该动作
+- "related_todo_id": 字符串或 null — 如果是更新已有待办则填其 ID
 
-Return a JSON array with exactly {count} objects (one per item, same order).
-Do NOT wrap the output in markdown fences.
+action_type 严格规则（必须遵守）：
+1. 来源为 file、browser、clipboard 的条目：action_type 必须为 null，不得创建任务
+2. importance <= 2 的条目：action_type 必须为 null
+3. 优先使用 "update_task" 关联已有待办，而非创建新任务
+4. 只有用户明确表达了意图（如笔记、终端命令中的 TODO）才可以 "new_task"
+5. "评估 X"、"探索 Y"、"了解 Z" 类描述不应创建任务
+
+返回一个恰好包含 {count} 个对象的 JSON 数组（与条目顺序一致）。
+不要用 markdown 代码块包裹输出。
 
 {todo_context}
 
-Items:
+条目：
 {items_block}
 """
 

@@ -193,6 +193,23 @@ def todo_rm(
     remove_todo(todo_id)
 
 
+@todo_app.command("merge")
+def todo_merge(
+    execute: bool = typer.Option(False, "--execute", "-e", help="Execute merges (default: dry-run)"),
+    config: Optional[str] = typer.Option(None, "--config", "-c"),
+) -> None:
+    """Find and merge semantically similar todos."""
+    _init_engine(config)
+    from soul_agent.modules.todo import suggest_merges
+
+    dry_run = not execute
+    suggestions = suggest_merges(dry_run=dry_run)
+    if not suggestions:
+        console.print("[dim]No merge candidates found.[/dim]")
+    elif dry_run:
+        console.print("\n[yellow]Dry-run mode. Use --execute to apply merges.[/yellow]")
+
+
 # ── Search ──────────────────────────────────────────────────────────────────
 
 @app.command()
@@ -544,9 +561,16 @@ def core_edit(
 
 @insight_app.command("today")
 def insight_today(
+    force: bool = typer.Option(False, "--force", "-f", help="Force regenerate and save insight"),
     config: Optional[str] = typer.Option(None, "-c", "--config"),
 ) -> None:
-    """Show today's daily insight report."""
+    """Show today's daily insight report. Use --force to regenerate."""
+    if force and _service_is_running():
+        resp = httpx.post(_api_url("/insight/generate"), timeout=30)
+        data = resp.json()
+        console.print(data.get("report", "[dim]No insight generated.[/dim]"))
+        return
+
     if _service_is_running():
         resp = httpx.get(_api_url("/insight"), params={"date": "today"}, timeout=15)
         data = resp.json()
@@ -556,10 +580,16 @@ def insight_today(
     _init_engine(config)
     from datetime import date
 
-    from soul_agent.modules.insight import build_daily_insight
-
     engine = _get_engine()
-    report = build_daily_insight(date.today(), engine)
+    if force:
+        from soul_agent.modules.insight import save_daily_insight
+
+        report = save_daily_insight(date.today(), engine)
+        console.print("[green]Insight generated and saved.[/green]")
+    else:
+        from soul_agent.modules.insight import build_daily_insight
+
+        report = build_daily_insight(date.today(), engine)
     console.print(report)
 
 
